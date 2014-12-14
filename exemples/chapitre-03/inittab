@@ -1,0 +1,18 @@
+###########################################################
+# inittab - Fichier de configuration pour le processus init
+# 
+# 2012-08-10 - CPB
+###########################################################
+
+# Script d'initialisation au boot
+::sysinit:/etc/init.d/rcS
+
+# Quatre shells sur les consoles virtuelles
+tty1::respawn:/bin/sh
+tty2::respawn:/bin/sh
+tty3::respawn:/bin/sh
+tty4::respawn:/bin/sh
+
+# Un shell sur le port serie RS-232
+ttyAMA0::respawn:/bin/sh 
+

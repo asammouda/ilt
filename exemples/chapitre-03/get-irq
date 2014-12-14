@@ -1,0 +1,18 @@
+#! /bin/sh
+printf "\r\n\r\n"
+echo '<html>'
+echo '<head>'
+echo '  <title>Interruptions du R-Pi</title>'
+echo ' <meta http-equiv="refresh" content="5" />'
+echo '</head>'
+echo '<body>'
+echo '<pre>'
+cat /proc/interrupts
+echo '</pre>'
+echo '<hr/>'
+echo '<a href="/index.html">Retour</a>'
+echo '</body>'
+echo '</html>'
+
+
+

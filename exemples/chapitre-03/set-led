@@ -1,0 +1,20 @@
+#! /bin/sh
+
+echo leds-gpio > /sys/class/leds/led0/device/driver/unbind 2>/dev/null
+echo 16 > /sys/class/gpio/export 2>/dev/null
+
+if [ "$QUERY_STRING" = "1" ]
+then
+	echo 0 > /sys/class/gpio/gpio16/value
+else
+	echo 1 > /sys/class/gpio/gpio16/value
+fi
+
+printf '\r\n\r\n'
+echo '<html><body>'
+echo '<a href="/cgi-bin/set-led?1">Allumer</a><br/>'
+echo '<a href="/cgi-bin/set-led?0">Eteindre</a>'
+echo '<hr/>'
+echo '<a href="/index.html">Retour</a>'
+echo '</body></html>'
+
