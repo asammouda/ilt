@@ -9,14 +9,14 @@ pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 void * fonction(void * arg)
 {	
 	pthread_mutex_lock(& mutex);
-	fprintf(stderr, "[%d] J'ai le mutex\n", (int) arg);
+	fprintf(stderr, "[%ld] J'ai le mutex\n", (long int) arg);
 	pthread_mutex_unlock(& mutex);
 	return NULL;
 }
 
 int main(int argc, char * argv [])
 {
-	int  prio;
+	long int prio;
 	pthread_t  thr;
 	pthread_attr_t  attr;
 	struct sched_param  param;

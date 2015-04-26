@@ -7,12 +7,12 @@ CROSS_COMPILE?=
 CC=$(CROSS_COMPILE)gcc
 
 .PHONY: all
-all: verification-preemption
+all: hello
 
-verification-preemption: verification-preemption.c
-	${CC} ${CFLAGS} verification-preemption.c -o verification-preemption
+hello: hello.c
+	${CC} ${CFLAGS} hello.c -o hello 
 
 clean: 
-	rm -f verification-preemption
+	rm -f hello
 
 

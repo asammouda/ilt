@@ -18,10 +18,6 @@ ifneq (${KERNELRELEASE},)
 	obj-m += exemple-05.o
 	obj-m += exemple-06.o
 
-# Exemples pour PC (port paralleleà
-# obj-m += exemple-05-pc.o
-# obj-m += exemple-06-pc.o
-
 
 else
 

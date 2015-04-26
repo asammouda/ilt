@@ -11,7 +11,7 @@
 
 void * fonction_thread(void * arg)
 {
-	int cpu = (int) arg;
+	long int cpu = (long int) arg;
 	cpu_set_t cpu_set;
 	struct sched_param param;
 
@@ -28,7 +28,7 @@ void * fonction_thread(void * arg)
 		exit(EXIT_FAILURE);
 	}
 
-	fprintf(stderr, "Thread sur CPU %d va demarrer...\n", cpu);
+	fprintf(stderr, "Thread sur CPU %ld va demarrer...\n", cpu);
 	sleep(1);
 	while (1)
 		;
@@ -38,7 +38,7 @@ void * fonction_thread(void * arg)
 
 int main(void)
 {
-	int cpu;
+	long int cpu;
 	pthread_t thr;
 
 	alarm(15);

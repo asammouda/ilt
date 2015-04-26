@@ -10,7 +10,7 @@ void * fonction(void * arg)
 {	
 	while (1) {
 		pthread_mutex_lock(& mutex);
-		fprintf(stderr, "[%d] J'ai le mutex\n", (int) arg);
+		fprintf(stderr, "[%ld] J'ai le mutex\n", (long int) arg);
 		sleep(1);
 		pthread_mutex_unlock(& mutex);
 	}
