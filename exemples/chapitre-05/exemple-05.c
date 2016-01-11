@@ -1,39 +1,86 @@
-/****************************************************************************\
-** Exemple de la formation "Temps-reel Linux et Xenomai                     **
-**                                                                          **
-** Christophe Blaess 2012                                                   **
-** http://christophe.blaess.fr                                              **
-\****************************************************************************/
-
-#include <fcntl.h>
-#include <mqueue.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+#include <linux/interrupt.h>
+#include <linux/version.h>
+#include <linux/module.h>
+#include <linux/gpio.h>
 
 
-int main(int argc, char * argv[])
+static irqreturn_t exemple_handler(int irq, void * ident);
+
+
+// L'entree se fait depuis la broche 16 (GPIO 23).
+#define RPI_IRQ_GPIO_IN  23
+
+
+// La sortie va sur la broche 18 (GPIO 24).
+#define RPI_IRQ_GPIO_OUT 24
+
+
+
+static int __init exemple_init (void)
 {
-	mqd_t mq;
-	int priorite;
+	int erreur;
+	
+	if ((erreur = gpio_request(RPI_IRQ_GPIO_OUT, THIS_MODULE->name)) != 0)
+		return erreur;
 
-	if ((argc != 4) || (sscanf(argv[2], "%d", & priorite) != 1)) {
-		fprintf(stderr, "usage: %s nom_mq priorite message\n",
-		                 argv[0]);
-		exit(EXIT_FAILURE);
+	// Demander l'acces au GPIO d'entree.
+	if ((erreur = gpio_request(RPI_IRQ_GPIO_IN, THIS_MODULE->name)) != 0) {
+		gpio_free(RPI_IRQ_GPIO_OUT);
+		return erreur;
 	}
-	
-	mq = mq_open(argv[1], O_CREAT | O_WRONLY, 0666, NULL);
-	if (mq == -1) {
-		perror(argv[1]);
-		exit(EXIT_FAILURE);
+
+	// Configurer la direction du GPIO de sortie.
+	if ((erreur = gpio_direction_output(RPI_IRQ_GPIO_OUT,1)) != 0) {
+		gpio_free(RPI_IRQ_GPIO_OUT);
+		gpio_free(RPI_IRQ_GPIO_IN);
+		return erreur;
 	}
-	
-	if (mq_send(mq, argv[3], strlen(argv[3]), priorite) != 0) {
-		perror("mq_send");
-		exit(EXIT_FAILURE);
+
+	// Configurer la direction du GPIO d'entree.
+	if ((erreur = gpio_direction_input(RPI_IRQ_GPIO_IN)) != 0) {
+		gpio_free(RPI_IRQ_GPIO_OUT);
+		gpio_free(RPI_IRQ_GPIO_IN);
+		return erreur;
 	}
-	return EXIT_SUCCESS;
+
+	// Installer le handler d'interruption.
+	if ((erreur = request_irq(gpio_to_irq(RPI_IRQ_GPIO_IN),
+	                       exemple_handler,
+	                       IRQF_SHARED | IRQF_TRIGGER_RISING,
+	                       THIS_MODULE->name,
+	                       THIS_MODULE->name)) != 0) {
+		gpio_free(RPI_IRQ_GPIO_OUT);
+		gpio_free(RPI_IRQ_GPIO_IN);
+		return erreur;
+	}
+
+	return 0; 
 }
+
+static void __exit exemple_exit (void)
+{
+	// Retrait du handler d'interruption.
+	free_irq(gpio_to_irq(RPI_IRQ_GPIO_IN), THIS_MODULE->name);
+	// Liberation des GPIO.
+	gpio_free(RPI_IRQ_GPIO_OUT);
+	gpio_free(RPI_IRQ_GPIO_IN);
+}
+
+
+static irqreturn_t exemple_handler(int irq, void * ident)
+{
+	static int out_value = 0;
+
+	if (gpio_get_value(RPI_IRQ_GPIO_IN) == 0)
+		return IRQ_NONE;
+
+	gpio_set_value(RPI_IRQ_GPIO_OUT, out_value);
+	out_value = 1 - out_value;
+
+	return IRQ_HANDLED;
+}
+
+module_init(exemple_init);
+module_exit(exemple_exit);
+MODULE_LICENSE("GPL");
 

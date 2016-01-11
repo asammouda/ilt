@@ -1,39 +1,40 @@
-/****************************************************************************\
-** Exemple de la formation "Temps-reel Linux et Xenomai                     **
-**                                                                          **
-** Christophe Blaess 2012                                                   **
-** http://christophe.blaess.fr                                              **
-\****************************************************************************/
-
-#include <signal.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <pthread.h>
 
-static int fin_traitement = 0;
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
-void handler_alarm(int unused)
-{
-	fin_traitement = 1;
+void * fonction(void * arg)
+{	
+	while (1) {
+		pthread_mutex_lock(& mutex);
+		fprintf(stderr, "[%ld] J'ai le mutex\n", (long int) arg);
+		sleep(1);
+		pthread_mutex_unlock(& mutex);
+	}
+	return NULL;
 }
 
-int main(int argc, char * argv[])
+int main(int argc, char * argv [])
 {
-	long long int compteur = 0;
-	int valeur_nice;
+	pthread_t  thr[2];
+	pthread_attr_t  attr;
+	struct sched_param  param;
 
-	if ((argc != 2) || (sscanf(argv[1], "%d", & valeur_nice) != 1)) {
-		fprintf(stderr, "usage: %s valeur_nice\n", argv[0]);
-		exit(EXIT_FAILURE);
+	pthread_mutex_lock(& mutex);
+	pthread_attr_init(& attr);
+	pthread_attr_setinheritsched(& attr, PTHREAD_EXPLICIT_SCHED);
+	pthread_attr_setschedpolicy(& attr, SCHED_RR);
+	param.sched_priority = 20;
+	pthread_attr_setschedparam(& attr, & param);
+	
+	if (((errno = pthread_create(& (thr[0]), & attr, fonction, (void *) 0)) != 0)
+	 || ((errno = pthread_create(& (thr[1]), & attr, fonction, (void *) 1)) != 0)) {
+			perror("pthread_create");
+			exit(EXIT_FAILURE);
 	}
-	nice(valeur_nice);
-
-	signal(SIGALRM, handler_alarm);
-	alarm(5);
-	while (! fin_traitement) {
-		compteur ++;
-	}
-	fprintf(stdout, "[%d] (nice = %d) compteur = %lld\n", getpid(), valeur_nice, compteur);
-	return 0;
+	pthread_mutex_unlock(& mutex);
+	pthread_exit(NULL);
 }
-

@@ -1,18 +1,31 @@
 
+CROSS_COMPILE ?=
 
-CFLAGS=-Wall -g
+CC = ${CROSS_COMPILE}gcc
+AS = ${CROSS_COMPILE}as
+LD = ${CROSS_COMPILE}gcc
 
-CROSS_COMPILE?=
+CFLAGS=-Wall -g -pthread
+LDFLAGS=-pthread
+LOADLIBES=-lrt
 
-CC=$(CROSS_COMPILE)gcc
+APPLICATIONS:=              \
+	exemple-01          \
+	exemple-02          \
+	exemple-03          \
+	exemple-04          \
+	exemple-05          \
+	exemple-06          \
+	exemple-07          \
+	exemple-08          \
+	exemple-09          \
+	exemple-10          \
+	exemple-11          \
+	exemple-12          \
 
-.PHONY: all
-all: hello
 
-hello: hello.c
-	${CC} ${CFLAGS} hello.c -o hello 
+all: ${APPLICATIONS}
 
-clean: 
-	rm -f hello
-
-
+clean::
+	rm -f ${APPLICATIONS} *.o *~
+	

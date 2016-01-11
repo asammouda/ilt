@@ -1,94 +1,108 @@
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include <unistd.h>
+#include <sys/mman.h>
+
+#include <native/task.h>
+#include <native/mutex.h>
+#include <native/timer.h>
+#include <rtdk.h>
+
+static RT_MUTEX  mutex;
 
 
+void thread_1(void *unused);
+void thread_2(void * unused);
+void thread_3(void * unused);
 
-static int nb_mesures = 0;
 
-void handler_alarm(int unused)
+void thread_1(void *unused)
 {
-	static long long int min;
-	static long long int max;
-	static long long int sum;
-	static long long int max_max = 0;
-	static struct timespec precedent;
-	static int mesure = -1;
+	int err;
+	RT_TASK task_2, task_3;
 
-	long long int duree;
-	struct timespec ts;
+	rt_fprintf(stderr, "T1 demarre\n");
 
-	if (mesure == -1) {
-		min = -1;
-		max = 0;
-		sum = 0;
-		clock_gettime(CLOCK_REALTIME, & precedent);
-		mesure ++;
-		return;
-	} 
+	rt_fprintf(stderr, "T1 demande le mutex\n");
+	rt_mutex_acquire(& mutex, TM_INFINITE);
+	rt_fprintf(stderr, "T1 tient le mutex\n");
 
-	clock_gettime(CLOCK_REALTIME, & ts);
-	duree  = ts.tv_sec - precedent.tv_sec;
-	duree *= 1000000000; // en nanosecondes
-	duree += ts.tv_nsec - precedent.tv_nsec;
-	duree /= 1000; // en microsecondes
-	if ((min == -1) || (duree < min))
-		min = duree;
-	if (duree > max) {
-		max = duree;
-		if (max_max < max)
-			max_max = duree;
+	rt_fprintf(stderr, "T1 demarre T3\n");
+	if ((err = rt_task_spawn(& task_3, NULL, 0, 30,
+	                  T_JOINABLE, thread_3, NULL) != 0)) {
+		fprintf(stderr, "rt_task_spawn:%s\n",
+		        strerror(-err));
+		exit(EXIT_FAILURE);
 	}
-	sum += duree;
-	precedent = ts;
-	mesure ++;
-	if (mesure == nb_mesures) {
-		fprintf(stdout, "Min.= %lld, Moy.=%lld, Max.=%lld,  Max.Max.=%lld\n",
-			min, sum / nb_mesures, max, max_max);
-		mesure = -1;
+
+	rt_fprintf(stderr, "T1 demarre T2\n");
+	if ((err = rt_task_spawn(& task_2, NULL, 0, 20,
+	                  T_JOINABLE, thread_2, NULL) != 0)) {
+		fprintf(stderr, "rt_task_spawn:%s\n",
+		        strerror(-err));
+		exit(EXIT_FAILURE);
 	}
 	
+	rt_fprintf(stderr, "T1 lache le mutex\n");
+	rt_mutex_release(& mutex);
+
+	rt_fprintf(stderr, "T1 attend T2 et T3\n");
+	rt_task_join(& task_2);
+	rt_task_join(& task_3);
+
+	rt_fprintf(stderr, "T1 se termine\n");
 }
 
 
-int main (int argc, char * argv[])
+void thread_2(void * unused)
+{	
+	rt_fprintf(stderr, "    T2 demarre\n");
+	rt_fprintf(stderr, "    T2 travaille\n");
+	rt_timer_spin(3000000000LLU);
+	rt_fprintf(stderr, "    T2 se termine\n");
+}
+
+
+void thread_3(void * unused)
 {
-	long int periode;
-	timer_t tmr;
-	struct sigevent notification;
-	struct itimerspec itimer;
+	rt_fprintf(stderr, "        T3 demarre\n");
+
+	rt_fprintf(stderr, "        T3 demande le mutex\n");
+	rt_mutex_acquire(& mutex, TM_INFINITE);
+	rt_fprintf(stderr, "        T3 tient le mutex\n");
+
+	rt_fprintf(stderr, "        T3 travaille\n");
+	rt_timer_spin(3000000000LLU);
+
+	rt_fprintf(stderr, "        T3 lache le mutex\n");
+	rt_mutex_release(& mutex);
+	rt_fprintf(stderr, "        T3 se termine\n");
+}
 
 
-	if ((argc != 2) || (sscanf(argv[1], "%ld", & periode) != 1)) {
-		fprintf(stderr, "usage: %s periode_us\n", argv[0]);
+
+int main(int argc, char * argv [])
+{
+	int err;
+	RT_TASK task;
+
+	mlockall(MCL_CURRENT|MCL_FUTURE);
+	rt_print_auto_init(1);
+
+	if ((err = rt_mutex_create(& mutex, "Exemple-02")) != 0) {
+		fprintf(stderr, "rt_mutex_create:%s\n",
+		         strerror(-err));
 		exit(EXIT_FAILURE);
 	}
-	if ((periode <= 0) || (periode > 2000000)) {
-		fprintf(stderr, "%s: La periode doit etre dans [1, 2000000]\n", argv[0]);
+
+	if ((err = rt_task_spawn(& task, NULL, 0, 10,
+	                  T_JOINABLE, thread_1, NULL) != 0)) {
+		fprintf(stderr, "rt_task_spawn:%s\n",
+		        strerror(-err));
 		exit(EXIT_FAILURE);
 	}
-
-	nb_mesures = 2000000 / periode; // Un affichage toutes les deux secondes environ
-
-	signal(SIGALRM, handler_alarm);
-	notification.sigev_notify = SIGEV_SIGNAL;
-	notification.sigev_signo  = SIGALRM;
-	if (timer_create(CLOCK_REALTIME, & notification, & tmr) != 0) {
-		perror("timer_create");
-		exit(EXIT_FAILURE);
-	}
-
-	itimer.it_value.tv_sec  = itimer.it_interval.tv_sec  = periode / 1000000;  // en secondes
-	itimer.it_value.tv_nsec = itimer.it_interval.tv_nsec = (periode % 1000000) * 1000; // en nanosecondes
-	if (timer_settime(tmr, 0, & itimer, NULL) != 0) {
-		perror("timer_settime");
-		exit(EXIT_FAILURE);
-	}
-
-	while(1)
-		pause();
-
-	return EXIT_SUCCESS;
+	
+	rt_task_join(& task);
+	rt_mutex_delete(& mutex);
+	return 0;
 }

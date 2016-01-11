@@ -1,43 +1,18 @@
-/****************************************************************************\
-** Exemple de la formation "Temps-reel Linux et Xenomai                     **
-**                                                                          **
-** Christophe Blaess 2012                                                   **
-** http://christophe.blaess.fr                                              **
-\****************************************************************************/
 
-#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
 
-static int compteur = 0;
+#define NB_ECHANTILLONS 50
 
-void * fonction (void * arg)
-{
-	int numero = (int) arg;
-	while (1) {
-		fprintf(stderr, "Thread %d, compteur = %d\n",
-		        numero, compteur);
-		sleep(1);
-	}
-	return NULL;
-}
-
-#define NB_THREADS 5
-
-int main(void)
+int main (void)
 {
 	int i;
-	pthread_t thr[NB_THREADS];
-
-	for (i = 0; i < NB_THREADS; i ++)
-		pthread_create(&(thr[i]), NULL, fonction, (void *)i);
-
-	while (1) {
-		fprintf(stderr, "Main : compteur = %d\n",
-		                compteur ++);
-		sleep(1);
-	}
-	return 0;
+	struct timespec ts[NB_ECHANTILLONS];
+	for (i = 0; i < NB_ECHANTILLONS; i++)
+		clock_gettime(CLOCK_REALTIME, & (ts[i]));
+	for (i = 0; i < NB_ECHANTILLONS; i++)
+		fprintf(stdout, "%ld.%09ld\n", ts[i].tv_sec, ts[i].tv_nsec);
+	return EXIT_SUCCESS;
 }
-

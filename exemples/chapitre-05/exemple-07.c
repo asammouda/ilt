@@ -1,40 +1,46 @@
-/****************************************************************************\
-** Exemple de la formation "Temps-reel Linux et Xenomai                     **
-**                                                                          **
-** Christophe Blaess 2012                                                   **
-** http://christophe.blaess.fr                                              **
-\****************************************************************************/
-
-#include <fcntl.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
-#include <sys/mman.h>
 
-int main(int argc, char * argv[])
+
+void * fonction (void * num)
 {
-	int fd;
-	int * compteur;
-	if (argc != 2) {
-		fprintf(stderr, "usage: %s nom_shm\n", argv[0]);
-		exit(1);
-	}
-	// Ouverture (ou creation) d'une zone de memoire partagee
-	if ((fd = shm_open(argv[1], O_CREAT | O_RDWR, 0666)) < 0) {
-		perror(argv[1]);
-		exit(1);
-	}
-	// Dimensionnement (seulement a la creation initiale)
-	ftruncate(fd, sizeof(int));
-	// Projection en memoire virtuelle
-	compteur = mmap(NULL, sizeof(int), PROT_READ|PROT_WRITE,
-	                MAP_SHARED, fd, 0);
-	// Utilisation
-	while (1) {
-		fprintf(stderr, "compteur = %d\n", * compteur);
-		sleep(1);
-		(* compteur) ++;
-	}
-	return 0;
+	int i, j;
+	time_t debut, fin;
+	debut = time(NULL);
+	for (i = 0; i < 100000; i ++)
+		for (j = 0; j < 10000; j ++)
+			;
+	fin = time(NULL);
+	fprintf(stderr, "%ld -> %ld\n", debut, fin);
+	return NULL;
 }
+
+#define NB 4
+
+int main(void)
+{
+	pthread_t thr[NB];
+	pthread_attr_t attr;
+	struct sched_param param;
+	int i;
+	
+	pthread_attr_init(& attr);
+	pthread_attr_setschedpolicy(& attr, SCHED_RR);
+	param.sched_priority = 10;
+	pthread_attr_setschedparam(& attr, & param);
+	pthread_attr_setinheritsched(& attr, PTHREAD_EXPLICIT_SCHED);
+	
+	for (i =  0; i < NB; i ++) {
+		if (pthread_create(&(thr[i]), & attr, fonction, NULL) != 0) {
+			fprintf(stderr, "erreur dans pthread_create %d\n", i);
+			exit(1);
+		}
+	}
+	pthread_exit(0);
+}
+
+
 

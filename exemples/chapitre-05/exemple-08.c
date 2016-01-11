@@ -1,64 +1,49 @@
-/****************************************************************************\
-** Exemple de la formation "Temps-reel Linux et Xenomai                     **
-**                                                                          **
-** Christophe Blaess 2012                                                   **
-** http://christophe.blaess.fr                                              **
-\****************************************************************************/
-
-#include <fcntl.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
-#include <semaphore.h>
-#include <sys/wait.h>
 
-#define NB_PROCESSUS   4
-#define NB_BOUCLES     3
+pthread_barrier_t barriere;
 
-int main(int argc, char * argv[])
+void * fonction (void * unused)
 {
 	int i, j;
-	sem_t * sem;
-	pid_t pid_fils[NB_PROCESSUS];
+	time_t debut, fin;
+
+	pthread_barrier_wait(& barriere);
+	debut = time(NULL);
+	for (i = 0; i < 100000; i ++)
+		for (j = 0; j < 10000; j ++)
+			;
+	fin = time(NULL);
+	fprintf(stderr, "%ld -> %ld\n", debut, fin);
+	return NULL;
+}
+
+#define NB 4
+
+int main(void)
+{
+	pthread_t thr[NB];
+	pthread_attr_t attr;
+	struct sched_param param;
+	int i;
 	
-	if (argc != 2) {
-		fprintf(stderr, "usage: %s nom_semaphore\n",
-		                 argv[0]);
-		exit(EXIT_FAILURE);
-	}
-	
-	// Lancement des processus fils
-	for (i = 0; i < NB_PROCESSUS; i ++) {
-	
-		pid_fils[i] = fork();
-		
-		if (pid_fils[i] == 0) {
-			// Processus fils
-			sem = sem_open(argv[1], O_RDWR | O_CREAT, 0666, 1);
-			if (sem == SEM_FAILED) {
-				perror(argv[1]);
-				exit(EXIT_FAILURE);
-			}
-			for (j = 0; j < NB_BOUCLES; j ++) {
-				fprintf(stderr, "[%u] attend le semaphore\n", getpid());
-				sem_wait(sem);
-				fprintf(stderr, "     >> [%d] tient le semaphore\n", getpid());
-				sleep(2);
-				fprintf(stderr, "     << [%d] libere le semaphore\n", getpid());
-				sem_post(sem);
-				sleep(5);
-			}
-			sem_close(sem);
-			exit(EXIT_SUCCESS);
+	pthread_barrier_init(&barriere, NULL, NB);
+	pthread_attr_init(& attr);
+	pthread_attr_setschedpolicy(& attr, SCHED_RR);
+	param.sched_priority = 10;
+	pthread_attr_setschedparam(& attr, & param);
+	pthread_attr_setinheritsched(& attr, PTHREAD_EXPLICIT_SCHED);
+	for (i =  0; i < NB; i ++) {
+		if (pthread_create(&(thr[i]), & attr, fonction, NULL) != 0) {
+			fprintf(stderr, "erreur dans pthread_create %d\n", i);
+			exit(1);
 		}
 	}
-
-	// Processus pere
-	for (i = 0; i < NB_PROCESSUS; i ++)
-		waitpid(pid_fils[i], NULL, 0);
-
-	sem_unlink(argv[1]);
-	
-	return EXIT_SUCCESS;
+	pthread_exit(0);
 }
+
+
 

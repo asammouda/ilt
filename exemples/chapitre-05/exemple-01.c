@@ -1,36 +1,53 @@
-/****************************************************************************\
-** Exemple de la formation "Temps-reel Linux et Xenomai                     **
-**                                                                          **
-** Christophe Blaess 2012                                                   **
-** http://christophe.blaess.fr                                              **
-\****************************************************************************/
-
+#include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/wait.h>
 
-int main(void)
+#include <sys/time.h>
+
+
+int main(int argc, char * argv[])
 {
-	pid_t  p;
-	fprintf(stderr, "[%d] Je suis le processus pere\n", getpid());
-	p = fork();
-	if (p == 0) {
-		fprintf(stderr, "[%d] Je suis le processus fils, mon pere est %d\n",
-		                 getpid(), getppid());
-		sleep(10);
-		fprintf(stderr, "[%d] Je vais me terminer...\n", 
-		                 getpid());
-		exit(0);
-	} else {
-		fprintf(stderr, "[%d] Je vais attendre la fin de mon fils %d\n",
-		                 getpid(), p);
-		waitpid(p, NULL, 0);
-		fprintf(stderr, "[%d] Mon fils %d s'est termine\n",
-		                 getpid(), p);
-		fprintf(stderr, "[%d] Je vais me terminer...\n",
-		                 getpid());
+	int priorite;
+	struct sched_param param;
+	struct timeval debut;
+	struct timeval heure;
+	long long int duree;
+	long long int compteur;
+
+	if ((argc != 2) || (sscanf(argv[1], "%d", & priorite) != 1)) {
+		fprintf(stderr, "usage: %s priorite\n", argv[0]);
+		exit(EXIT_FAILURE);
 	}
-	return 0;
+
+	param.sched_priority = priorite;
+	if (sched_setscheduler(0, SCHED_RR, & param) != 0) {
+		perror("setscheduler");
+		exit(EXIT_FAILURE);
+	}
+
+	// Attendre la prochaine seconde avant de demarrer la boucle de comptage	
+	gettimeofday(& debut, NULL);
+	while (1) {
+		gettimeofday(& heure, NULL);
+		if (heure.tv_sec != debut.tv_sec)
+			break;
+		usleep(1000);
+	}
+	// Demarrer la boucle
+	debut = heure;
+	compteur = 0;
+	while (1) {
+		gettimeofday(& heure, NULL);
+		duree  = heure.tv_sec - debut.tv_sec;
+		duree *= 1000000; // en microsecondes
+		duree += heure.tv_usec - debut.tv_usec;
+		if (duree >= 3000000)
+			break;
+		compteur ++;
+	}
+	fprintf(stdout, "[%d] Priorite = %d, compteur = %lld\n",
+	                 getpid(), priorite, compteur);
+	return EXIT_SUCCESS;
 }
 

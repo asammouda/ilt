@@ -1,53 +1,36 @@
-#include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/mman.h>
 
-#include <sys/time.h>
+#include <rtdk.h>
+#include <native/task.h>
 
 
-int main(int argc, char * argv[])
+void fonction_hello_world (void * unused)
 {
-	int priorite;
-	struct sched_param param;
-	struct timeval debut;
-	struct timeval heure;
-	long long int duree;
-	long long int compteur;
+	while (1) {
+		rt_printf("Hello from Xenomai Realtime Space\n");
+		rt_task_sleep(1000000000LL); // 1 milliard ns = 1 s.
+	}
+}
 
-	if ((argc != 2) || (sscanf(argv[1], "%d", & priorite) != 1)) {
-		fprintf(stderr, "usage: %s priorite\n", argv[0]);
+
+int main(void)
+{
+	int err;
+	RT_TASK task;
+	
+	mlockall(MCL_CURRENT|MCL_FUTURE);
+	rt_print_auto_init(1);
+	
+	if ((err = rt_task_spawn(& task, "Hello_01",
+	                         0, 99, T_JOINABLE,
+	                         fonction_hello_world, NULL)) != 0) {
+		fprintf(stderr, "rt_task_spawn: %s\n", strerror(-err));
 		exit(EXIT_FAILURE);
 	}
-
-	param.sched_priority = priorite;
-	if (sched_setscheduler(0, SCHED_RR, & param) != 0) {
-		perror("setscheduler");
-		exit(EXIT_FAILURE);
-	}
-
-	// Attendre la prochaine seconde avant de demarrer la boucle de comptage	
-	gettimeofday(& debut, NULL);
-	while (1) {
-		gettimeofday(& heure, NULL);
-		if (heure.tv_sec != debut.tv_sec)
-			break;
-		usleep(1000);
-	}
-	// Demarrer la boucle
-	debut = heure;
-	compteur = 0;
-	while (1) {
-		gettimeofday(& heure, NULL);
-		duree  = heure.tv_sec - debut.tv_sec;
-		duree *= 1000000; // en microsecondes
-		duree += heure.tv_usec - debut.tv_usec;
-		if (duree >= 3000000)
-			break;
-		compteur ++;
-	}
-	fprintf(stdout, "[%d] Priorite = %d, compteur = %lld\n",
-	                 getpid(), priorite, compteur);
-	return EXIT_SUCCESS;
+	rt_task_join(& task);
+	return 0;
 }
 
