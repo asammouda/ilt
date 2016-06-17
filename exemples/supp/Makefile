@@ -1,6 +1,7 @@
 ifneq (${KERNELRELEASE},)
 
 	obj-m  = handler-01.o
+	obj-m += handler-02.o
 
 else
 
