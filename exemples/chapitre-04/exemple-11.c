@@ -37,13 +37,16 @@ int main(void)
 		pthread_attr_init(& attr);
 		pthread_attr_setaffinity_np(& attr, sizeof(cpu_set_t), & cpu_set);
 		if ((errno = pthread_create(& (threads[i]), & attr, fonction_thread, (void *) i)) != 0) {
+			pthread_attr_destroy(&attr);
 			perror("pthread_create");
 			exit(EXIT_FAILURE);
 		}
 	}
+	pthread_attr_destroy(&attr);
 	for (i = 0; i < nb_cpus; i ++) {
 		pthread_join(threads[i], NULL);
 	}
+	free(threads);
 	return EXIT_SUCCESS;
 }
 

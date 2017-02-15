@@ -82,6 +82,7 @@ int main(int argc, char * argv[])
 	}
 
 	rt_task_join(& task);
+	close(fd);
 	return 0;
 }
 
